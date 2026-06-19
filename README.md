@@ -423,7 +423,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 Email: utsavmehta24@gmail.com
+- 📧 Email: utsavmehta24072003@gmail.com
 - 🐛 Issues: [GitHub Issues](https://github.com/utsavmehta24/SecOpsPulse/issues)
 - 📖 Documentation: [Wiki](https://github.com/utsavmehta24/SecOpsPulse/wiki)
 - 💬 Discussions: [GitHub Discussions](https://github.com/utsavmehta24/SecOpsPulse/discussions)
