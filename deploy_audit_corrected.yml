@@ -1,0 +1,109 @@
+---
+- name: SecOpsPulse Security Audit Deployment
+  hosts: target_hosts
+  become: yes
+  gather_facts: yes
+  vars:
+    dashboard_path: "/var/www/html"
+    nginx_conf_path: "/etc/nginx/sites-available"
+    
+  tasks:
+    - name: Update package cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      tags: packages
+      
+    - name: Update package cache (RedHat/CentOS)
+      yum:
+        update_cache: yes
+      when: ansible_os_family == "RedHat"
+      tags: packages
+
+    - name: Install required packages
+      package:
+        name:
+          - nginx
+          - curl
+          - net-tools
+          - iproute2
+        state: present
+      tags: packages
+
+    - name: Gather system information
+      setup:
+      tags: audit
+
+    - name: Check open ports
+      shell: ss -tuln
+      register: open_ports
+      changed_when: false
+      tags: audit
+
+    - name: Check installed packages (Debian/Ubuntu)
+      shell: dpkg -l
+      register: installed_packages_deb
+      when: ansible_os_family == "Debian"
+      changed_when: false
+      tags: audit
+
+    - name: Check installed packages (RedHat/CentOS)
+      shell: rpm -qa
+      register: installed_packages_rpm
+      when: ansible_os_family == "RedHat"
+      changed_when: false
+      tags: audit
+
+    - name: Check firewall status (ufw)
+      shell: ufw status
+      register: firewall_status_ufw
+      when: ansible_os_family == "Debian"
+      changed_when: false
+      failed_when: false
+      tags: audit
+
+    - name: Check firewall status (firewalld)
+      shell: firewall-cmd --state
+      register: firewall_status_firewalld
+      when: ansible_os_family == "RedHat"
+      changed_when: false
+      failed_when: false
+      tags: audit
+
+    - name: Create web directory
+      file:
+        path: "{{ dashboard_path }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      tags: web
+
+    - name: Remove default nginx page
+      file:
+        path: "{{ dashboard_path }}/index.nginx-debian.html"
+        state: absent
+      tags: web
+
+    - name: Generate security dashboard
+      template:
+        src: dashboard.html.j2
+        dest: "{{ dashboard_path }}/index.html"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: web
+
+    - name: Start and enable nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+      tags: web
+
+    - name: Ensure nginx is running
+      systemd:
+        name: nginx
+        state: started
+      tags: web

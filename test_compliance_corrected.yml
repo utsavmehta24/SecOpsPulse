@@ -1,0 +1,81 @@
+---
+- name: SecOpsPulse Compliance Testing
+  hosts: target_hosts
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Test - Verify nginx is installed
+      package_facts:
+      tags: test
+
+    - name: Test - Check if nginx package is installed
+      assert:
+        that:
+          - "'nginx' in ansible_facts.packages"
+        fail_msg: "Nginx package is not installed"
+        success_msg: "Nginx package is installed"
+      tags: test
+
+    - name: Test - Verify nginx service is running
+      systemd:
+        name: nginx
+      register: nginx_status
+      tags: test
+
+    - name: Test - Assert nginx is active
+      assert:
+        that:
+          - nginx_status.status.ActiveState == "active"
+        fail_msg: "Nginx service is not running"
+        success_msg: "Nginx service is running"
+      tags: test
+
+    - name: Test - Verify dashboard file exists
+      stat:
+        path: "/var/www/html/index.html"
+      register: dashboard_file
+      tags: test
+
+    - name: Test - Assert dashboard file exists
+      assert:
+        that:
+          - dashboard_file.stat.exists
+        fail_msg: "Dashboard file does not exist"
+        success_msg: "Dashboard file exists"
+      tags: test
+
+    - name: Test - Check HTTP response
+      uri:
+        url: "http://localhost/"
+        method: GET
+        status_code: 200
+      register: http_response
+      tags: test
+
+    - name: Test - Verify HTTP response contains expected content
+      assert:
+        that:
+          - "'SecOpsPulse' in http_response.content"
+        fail_msg: "Dashboard content not found"
+        success_msg: "Dashboard is accessible and contains expected content"
+      tags: test
+
+    - name: Test - Check web directory permissions
+      stat:
+        path: "/var/www/html"
+      register: web_dir_perms
+      tags: test
+
+    - name: Test - Verify web directory permissions
+      assert:
+        that:
+          - web_dir_perms.stat.mode == "0755"
+        fail_msg: "Web directory permissions are incorrect"
+        success_msg: "Web directory permissions are correct"
+      tags: test
+
+    - name: Display test results
+      debug:
+        msg: "All compliance tests passed successfully!"
+      tags: test
