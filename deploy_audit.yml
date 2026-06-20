@@ -1,39 +1,41 @@
 ---
+# SecOpsPulse deployment playbook.
+# Installs the packages needed for local dashboard hosting and audit collection.
+# Gathers host facts, package inventory, port data, and firewall status.
+# Renders dashboard.html.j2 into /var/www/html/index.html and ensures Nginx is running.
 - name: SecOpsPulse Security Audit Deployment
   hosts: target_hosts
-  become: yes
   gather_facts: yes
   vars:
     dashboard_path: "/var/www/html"
     nginx_conf_path: "/etc/nginx/sites-available"
     
   tasks:
-    - name: Update package cache (Debian/Ubuntu)
+    - name: Install required packages (Debian/Ubuntu)
       apt:
-        update_cache: yes
-        cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
-      tags: packages
-      
-    - name: Update package cache (RedHat/CentOS)
-      yum:
-        update_cache: yes
-      when: ansible_os_family == "RedHat"
-      tags: packages
-
-    - name: Install required packages
-      package:
         name:
           - nginx
           - curl
           - net-tools
           - iproute2
         state: present
+        update_cache: no
+      become: yes
+      when: ansible_os_family == "Debian"
       tags: packages
 
-    - name: Gather system information
-      setup:
-      tags: audit
+    - name: Install required packages (RedHat/CentOS)
+      yum:
+        name:
+          - nginx
+          - curl
+          - net-tools
+          - iproute2
+        state: present
+        update_cache: no
+      become: yes
+      when: ansible_os_family == "RedHat"
+      tags: packages
 
     - name: Check open ports
       shell: ss -tuln
@@ -78,12 +80,14 @@
         owner: www-data
         group: www-data
         mode: '0755'
+      become: yes
       tags: web
 
     - name: Remove default nginx page
       file:
         path: "{{ dashboard_path }}/index.nginx-debian.html"
         state: absent
+      become: yes
       tags: web
 
     - name: Generate security dashboard
@@ -93,6 +97,7 @@
         owner: www-data
         group: www-data
         mode: '0644'
+      become: yes
       tags: web
 
     - name: Start and enable nginx
@@ -100,10 +105,12 @@
         name: nginx
         state: started
         enabled: yes
+      become: yes
       tags: web
 
     - name: Ensure nginx is running
       systemd:
         name: nginx
         state: started
+      become: yes
       tags: web

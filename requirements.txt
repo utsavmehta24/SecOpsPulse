@@ -1,3 +1,7 @@
+# SecOpsPulse Python requirements.
+# These packages support Ansible execution, Jinja template rendering, and common automation helpers.
+# On Ubuntu/WSL, installing Ansible through apt is usually enough; this file is useful for pip-based setups.
+# Keep versions broad so the project works across common Ansible 2.x environments.
 ansible>=2.9.0,<6.0.0
 jinja2>=2.10.0
 PyYAML>=5.1.0

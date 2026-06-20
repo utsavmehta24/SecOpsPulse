@@ -1,29 +1,20 @@
-#!/bin/bash
-cd ~/SecOpsPulse
+#!/usr/bin/env bash
+# SecOpsPulse deployment helper.
+# Runs the main Ansible playbook from this script's directory.
+# Keeps sudo password handling inside Ansible's normal -K prompt instead of storing secrets in the repo.
+# Prints the dashboard URL after a successful deployment.
 
-echo "=== SecOpsPulse Deployment Script ==="
-echo "Setting up sudo permissions temporarily..."
+set -euo pipefail
 
-# Configure sudo to not require password for this session
-echo 'Utsav@1234' | sudo -S bash -c "echo 'utsav ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ansible-temp"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-if [ $? -eq 0 ]; then
-    echo "✓ Sudo configured successfully"
-    
-    echo "Running Ansible playbook..."
-    ansible-playbook -i inventory.ini deploy_audit.yml -v
-    
-    echo "Cleaning up sudo configuration..."
-    sudo rm -f /etc/sudoers.d/ansible-temp
-    
-    if [ -f /var/www/html/index.html ]; then
-        echo "✓ Deployment successful!"
-        echo "Dashboard available at: http://localhost/"
-        echo "Report also saved to: /tmp/security_report.html"
-    else
-        echo "⚠ Deployment may have issues, check the logs above"
-    fi
-else
-    echo "✗ Failed to configure sudo"
-    exit 1
-fi
+echo "=== SecOpsPulse Deployment ==="
+echo "Enter your WSL user password when prompted."
+echo "Gathering Facts can take 20-30 seconds on WSL; that is normal."
+echo "Package install skips apt update to avoid long WSL hangs."
+ansible-playbook -i inventory.ini deploy_audit.yml -K
+
+echo
+echo "Deployment complete."
+echo "Dashboard: http://localhost/"

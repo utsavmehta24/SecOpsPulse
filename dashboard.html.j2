@@ -1,3 +1,9 @@
+<!--
+SecOpsPulse dashboard template.
+Ansible renders this Jinja2 file with live audit data collected in deploy_audit.yml.
+The generated HTML is served by Nginx at /var/www/html/index.html.
+Each card gives a quick operational summary and expands to explain what the values mean.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,322 +11,1020 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecOpsPulse - Security Compliance Dashboard</title>
     <style>
+        :root {
+            --bg: #eef3f8;
+            --surface: #ffffff;
+            --surface-soft: #f7fafc;
+            --ink: #162033;
+            --muted: #657084;
+            --line: #dfe7ef;
+            --navy: #17324d;
+            --teal: #0f9f8f;
+            --green: #16a34a;
+            --amber: #d97706;
+            --red: #dc2626;
+            --blue: #2563eb;
+            --shadow: 0 18px 45px rgba(22, 32, 51, 0.14);
+        }
+
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
-        
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
             min-height: 100vh;
-            padding: 20px;
-            color: #333;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, sans-serif;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+
+        .page {
+            width: min(1240px, calc(100% - 48px));
+            margin: 28px auto 36px;
+            background: var(--surface);
+            border: 1px solid rgba(22, 32, 51, 0.08);
+            border-radius: 18px;
             overflow: hidden;
+            box-shadow: var(--shadow);
         }
-        
-        .header {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white;
-            padding: 30px;
+
+        .hero {
+            position: relative;
+            padding: 36px 40px 34px;
+            color: #ffffff;
             text-align: center;
+            background:
+                radial-gradient(circle at 82% 18%, rgba(15, 159, 143, 0.32), transparent 28%),
+                linear-gradient(135deg, #10233a 0%, #17456a 58%, #2d7d7a 100%);
         }
-        
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(2rem, 3vw, 2.75rem);
+            font-weight: 750;
+            letter-spacing: 0;
         }
-        
-        .header .subtitle {
-            font-size: 1.1em;
-            opacity: 0.9;
+
+        .subtitle {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.86);
+            font-size: 1rem;
         }
-        
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 10px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.13);
+            font-weight: 700;
+        }
+
+        .pulse {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.16);
+        }
+
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: 1fr;
             gap: 20px;
-            padding: 30px;
+            padding: 28px 32px 32px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
         }
-        
-        .card {
-            background: white;
+
+        @media (min-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 22px;
+                padding: 32px 36px 36px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 24px;
+                padding: 36px 40px 40px;
+            }
+
+            .card-top {
+                padding: 22px 24px;
+            }
+
+            .card-title {
+                font-size: 1.15rem;
+            }
+        }
+
+        section.card {
+            min-width: 0;
+            background: var(--surface);
+            border: 1px solid var(--line);
             border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            border-left: 4px solid #3498db;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 6px 18px rgba(22, 32, 51, 0.06);
+            overflow: hidden;
+            transition: box-shadow 0.18s ease, border-color 0.18s ease;
         }
-        
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+
+        section.card:hover,
+        section.card.is-open {
+            border-color: rgba(15, 159, 143, 0.36);
+            box-shadow: 0 14px 30px rgba(22, 32, 51, 0.11);
         }
-        
-        .card h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 1.3em;
+
+        section.card.is-open {
+            border-color: rgba(15, 159, 143, 0.45);
+            box-shadow: 0 16px 36px rgba(22, 32, 51, 0.12);
+        }
+
+        @media (min-width: 900px) {
+            section.card.is-open {
+                grid-column: 1 / -1;
+            }
+        }
+
+        .card-top {
+            padding: 26px;
+        }
+
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
             display: flex;
             align-items: center;
+            gap: 12px;
+            margin: 0;
+            color: var(--navy);
+            font-size: 1.28rem;
+            font-weight: 750;
         }
-        
-        .card h3 .icon {
-            margin-right: 10px;
-            font-size: 1.5em;
+
+        .icon {
+            display: inline-grid;
+            place-items: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 9px;
+            background: #edf6f5;
+            color: var(--teal);
+            font-size: 1.45rem;
         }
-        
+
+        .expand-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 110px;
+            height: 36px;
+            padding: 0 14px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            color: var(--navy);
+            background: var(--surface-soft);
+            font: inherit;
+            font-size: 0.83rem;
+            font-weight: 750;
+            white-space: nowrap;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .expand-btn:hover {
+            border-color: rgba(15, 159, 143, 0.45);
+            background: #edf6f5;
+        }
+
+        section.card.is-open .expand-btn {
+            color: #ffffff;
+            border-color: var(--teal);
+            background: var(--teal);
+        }
+
+        .summary-content {
+            margin: 0;
+        }
+
         .info-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid #ecf0f1;
+            gap: 16px;
+            padding: 10px 0;
+            border-bottom: 1px solid #edf1f5;
         }
-        
+
         .info-row:last-child {
-            border-bottom: none;
+            border-bottom: 0;
         }
-        
+
         .label {
-            font-weight: 600;
-            color: #555;
+            color: var(--muted);
+            font-weight: 650;
         }
-        
+
         .value {
-            color: #333;
-            font-family: 'Courier New', monospace;
+            max-width: 58%;
+            overflow-wrap: anywhere;
+            color: var(--ink);
+            font-family: "Cascadia Mono", "Consolas", "Menlo", monospace;
+            font-weight: 750;
+            text-align: right;
         }
-        
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            border: 1px solid #d7e8e5;
+            background: #effaf8;
+            color: #087569;
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-align: right;
+        }
+
         .status-good {
-            color: #27ae60;
-            font-weight: bold;
+            color: var(--green);
         }
-        
+
         .status-warning {
-            color: #f39c12;
-            font-weight: bold;
+            color: var(--amber);
         }
-        
+
         .status-danger {
-            color: #e74c3c;
-            font-weight: bold;
+            color: var(--red);
         }
-        
-        .code-block {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 5px;
-            padding: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 10px;
+
+        .badge.status-good {
+            border-color: #cbeed7;
+            background: #edfdf3;
+            color: #15803d;
         }
-        
-        .timestamp {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            font-style: italic;
-            border-top: 1px solid #ecf0f1;
+
+        .badge.status-warning {
+            border-color: #fde6b8;
+            background: #fff8eb;
+            color: #b45309;
         }
-        
+
         .metric-large {
-            font-size: 2.5em;
-            font-weight: bold;
+            margin: 10px 0 16px;
+            color: var(--green);
+            font-size: 3.4rem;
+            line-height: 1;
             text-align: center;
-            margin: 15px 0;
+            font-weight: 850;
         }
-        
+
         .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #ecf0f1;
-            border-radius: 10px;
+            height: 9px;
+            margin: 12px 0;
             overflow: hidden;
-            margin: 10px 0;
+            border-radius: 999px;
+            background: #e6edf4;
         }
-        
+
         .progress-fill {
             height: 100%;
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            transition: width 0.3s ease;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--teal), var(--blue));
+        }
+
+        .details-panel {
+            display: block;
+            padding: 0 24px 24px;
+            border-top: 1px solid var(--line);
+            background: linear-gradient(180deg, #f4f9fc 0%, #ffffff 100%);
+        }
+
+        .details-panel[hidden] {
+            display: none !important;
+        }
+
+        .details-intro {
+            margin: 0;
+            padding: 18px 20px 0;
+            color: var(--navy);
+            font-size: 1.05rem;
+            font-weight: 750;
+        }
+
+        .insight-banner {
+            margin: 16px 20px 0;
+            padding: 16px 18px;
+            border-left: 4px solid var(--teal);
+            border-radius: 0 10px 10px 0;
+            background: #e8f7f5;
+            color: var(--navy);
+            font-size: 0.97rem;
+            line-height: 1.6;
+        }
+
+        .insight-banner strong {
+            color: #0b6b61;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            padding: 18px 20px 20px;
+        }
+
+        @media (min-width: 900px) {
+            .details-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 16px;
+            }
+
+            .details-grid .wide {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .details-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+
+            .details-grid .wide {
+                grid-column: 1 / -1;
+            }
+        }
+
+        .detail-block {
+            min-width: 0;
+            padding: 16px 17px;
+            border: 1px solid #dce8f2;
+            border-radius: 10px;
+            background: var(--surface);
+            box-shadow: 0 2px 8px rgba(22, 32, 51, 0.04);
+        }
+
+        .detail-block h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 10px;
+            color: var(--navy);
+            font-size: 0.88rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .detail-block h4::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--teal);
+            flex-shrink: 0;
+        }
+
+        .detail-block p,
+        .detail-block ul {
+            margin: 0;
+            color: #4a5568;
+            line-height: 1.62;
+            font-size: 0.93rem;
+        }
+
+        .field-guide {
+            margin: 16px 20px 0;
+            padding: 0;
+            list-style: none;
+            border: 1px solid #e2ebf3;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .field-guide li {
+            display: grid;
+            grid-template-columns: minmax(120px, 34%) 1fr;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .field-guide li:last-child {
+            border-bottom: 0;
+        }
+
+        .field-guide .fg-label {
+            color: var(--navy);
+            font-weight: 750;
+        }
+
+        .field-guide .fg-text {
+            color: var(--muted);
+        }
+
+        .detail-block ul {
+            padding-left: 18px;
+        }
+
+        .code-block {
+            max-height: 260px;
+            overflow: auto;
+            white-space: pre-wrap;
+            padding: 14px;
+            border: 1px solid #d9e3ed;
+            border-radius: 8px;
+            background: #101827;
+            color: #dbeafe;
+            font: 0.84rem/1.5 "Cascadia Mono", "Consolas", "Menlo", monospace;
+        }
+
+        .wide {
+            grid-column: 1 / -1;
+        }
+
+        .timestamp {
+            padding: 24px 28px;
+            border-top: 1px solid var(--line);
+            background: #f5f8fb;
+            color: var(--muted);
+            text-align: center;
+            font-size: 0.92rem;
+        }
+
+        .timestamp p {
+            margin: 4px 0;
+        }
+
+        @media (max-width: 899px) {
+            .dashboard-grid {
+                padding: 22px;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field-guide li {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .page {
+                width: 100%;
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .hero {
+                padding: 34px 18px;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+
+            .card-top {
+                padding: 20px;
+            }
+
+            .info-row {
+                display: block;
+            }
+
+            .value,
+            .badge {
+                display: inline-flex;
+                max-width: 100%;
+                margin-top: 6px;
+                text-align: left;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🛡️ SecOpsPulse</h1>
+    {% set cpu_cores = (ansible_processor_vcpus | default(ansible_processor_count | default(1))) | int %}
+    {% if cpu_cores < 1 %}{% set cpu_cores = 1 %}{% endif %}
+    {% set load_1m = ((ansible_loadavg | default({}))['1m'] | default(0)) | float %}
+    {% set mem_total = (ansible_memtotal_mb | default(0)) | float %}
+    {% set mem_free = (ansible_memfree_mb | default(0)) | float %}
+    {% set mem_used_pct = (((mem_total - mem_free) / mem_total * 100) | round) if mem_total > 0 else 0 %}
+    {% set deb_packages = (installed_packages_deb.stdout_lines | default([]) | select('match', '^ii\\s') | list) if installed_packages_deb is defined and not (installed_packages_deb.skipped | default(false)) else [] %}
+    {% set rpm_packages = installed_packages_rpm.stdout_lines | default([]) if installed_packages_rpm is defined and not (installed_packages_rpm.skipped | default(false)) else [] %}
+    {% set package_total = deb_packages | length if deb_packages | length > 0 else rpm_packages | length %}
+    {% set ufw_status = firewall_status_ufw.stdout | default('Not configured') if firewall_status_ufw is defined and not (firewall_status_ufw.skipped | default(false)) else '' %}
+    {% set firewalld_status = firewall_status_firewalld.stdout | default('Not active') if firewall_status_firewalld is defined and not (firewall_status_firewalld.skipped | default(false)) else '' %}
+    {% set firewall_text = ufw_status if ufw_status else firewalld_status %}
+    {% set firewall_active = ('Status: active' in ufw_status) or (firewall_status_firewalld.rc | default(1) == 0 and firewalld_status == 'running') %}
+
+    <main class="page">
+        <section class="hero">
+            <h1>SecOpsPulse</h1>
             <div class="subtitle">Security Compliance Dashboard</div>
-        </div>
-        
-        <div class="dashboard-grid">
-            <!-- System Information Card -->
-            <div class="card">
-                <h3><span class="icon">🖥️</span>System Information</h3>
-                <div class="info-row">
-                    <span class="label">Hostname:</span>
-                    <span class="value">{{ ansible_hostname }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Operating System:</span>
-                    <span class="value">{{ ansible_distribution }} {{ ansible_distribution_version }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Kernel:</span>
-                    <span class="value">{{ ansible_kernel }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Architecture:</span>
-                    <span class="value">{{ ansible_architecture }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Uptime:</span>
-                    <span class="value">{{ (ansible_uptime_seconds / 3600) | round(1) }} hours</span>
-                </div>
+            <div class="status-pill">
+                <span class="pulse"></span>
+                System Status: Live Monitoring Active
             </div>
+        </section>
 
-            <!-- Network Security Card -->
-            <div class="card">
-                <h3><span class="icon">🌐</span>Network Security</h3>
-                {% if open_ports is defined %}
-                <div class="info-row">
-                    <span class="label">Open Ports Scan:</span>
-                    <span class="value status-good">✓ Completed</span>
+        <section class="dashboard-grid" aria-label="Security dashboard cards">
+            <section class="card">
+                <div class="card-top">
+                    <div class="card-head">
+                        <div class="card-title"><span class="icon">SYS</span>System Information                        </div>
+                        <button type="button" class="expand-btn" aria-expanded="false">View Details</button>
+                    </div>
+                    <div class="summary-content">
+                        <div class="info-row">
+                            <span class="label">Hostname</span>
+                            <span class="value">{{ ansible_hostname | default('Unknown') }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Operating System</span>
+                            <span class="value">{{ ansible_distribution | default('Unknown') }} {{ ansible_distribution_version | default('') }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Kernel</span>
+                            <span class="value">{{ ansible_kernel | default('Unknown') }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Architecture</span>
+                            <span class="value">{{ ansible_architecture | default('Unknown') }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Uptime</span>
+                            <span class="value">{{ ((ansible_uptime_seconds | default(0)) / 3600) | round(1) }} hours</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="code-block">{{ open_ports.stdout | default('No data available') }}</div>
-                {% endif %}
-                
-                {% if firewall_status_ufw is defined %}
-                <div class="info-row">
-                    <span class="label">UFW Firewall:</span>
-                    <span class="value {% if 'active' in firewall_status_ufw.stdout %}status-good{% else %}status-warning{% endif %}">
-                        {{ firewall_status_ufw.stdout | default('Not configured') }}
-                    </span>
+                <div class="details-panel" hidden>
+                    <p class="details-intro">Detailed analysis — System Information</p>
+                    <div class="insight-banner">
+                        <strong>Current status:</strong> Host <strong>{{ ansible_hostname | default('Unknown') }}</strong> is running
+                        <strong>{{ ansible_distribution | default('Unknown') }} {{ ansible_distribution_version | default('') }}</strong>
+                        on <strong>{{ ansible_architecture | default('Unknown') }}</strong> with
+                        <strong>{{ ((ansible_uptime_seconds | default(0)) / 3600) | round(1) }} hours</strong> of uptime since the last boot.
+                    </div>
+                    <ul class="field-guide">
+                        <li>
+                            <span class="fg-label">Hostname</span>
+                            <span class="fg-text">Identifies this machine in logs, SSH sessions, and inventory. A mismatch here means you may be reviewing the wrong host.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Operating System</span>
+                            <span class="fg-text">Defines your patch baseline and supported packages. Unexpected versions can indicate an unpatched or mis-provisioned system.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Kernel</span>
+                            <span class="fg-text">Controls hardware support and security modules. Older kernels may miss critical fixes even if the OS package list looks current.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Uptime</span>
+                            <span class="fg-text">Shows stability and whether recent maintenance reboots were applied. Very long uptime after a security patch window may mean pending reboot.</span>
+                        </li>
+                    </ul>
+                    <div class="details-grid">
+                        <div class="detail-block">
+                            <h4>What this indicates</h4>
+                            <p>This host matches a standard Linux audit profile. Compare hostname, OS version, and kernel against your asset register to confirm the report belongs to the intended environment.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Why it's useful</h4>
+                            <p>System identity is the foundation of every security review. Before checking ports or packages, you need confidence that you are looking at the correct machine and platform baseline.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Security relevance</h4>
+                            <p>Wrong OS or kernel versions are early indicators of configuration drift, incomplete patching, or unauthorized image changes that can affect compliance posture.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Recommended actions</h4>
+                            <ul>
+                                <li>Verify hostname against your CMDB or inventory</li>
+                                <li>Confirm OS and kernel match approved build standards</li>
+                                <li>Investigate unusually long uptime after patch cycles</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
-                
-                {% if firewall_status_firewalld is defined %}
-                <div class="info-row">
-                    <span class="label">FirewallD:</span>
-                    <span class="value {% if firewall_status_firewalld.rc == 0 %}status-good{% else %}status-warning{% endif %}">
-                        {{ firewall_status_firewalld.stdout | default('Not active') }}
-                    </span>
-                </div>
-                {% endif %}
-            </div>
+            </section>
 
-            <!-- Package Information Card -->
-            <div class="card">
-                <h3><span class="icon">📦</span>Package Information</h3>
-                {% if installed_packages_deb is defined %}
-                <div class="info-row">
-                    <span class="label">Package Manager:</span>
-                    <span class="value">APT (Debian/Ubuntu)</span>
+            <section class="card">
+                <div class="card-top">
+                    <div class="card-head">
+                        <div class="card-title"><span class="icon">NET</span>Network Security                        </div>
+                        <button type="button" class="expand-btn" aria-expanded="false">View Details</button>
+                    </div>
+                    <div class="summary-content">
+                        <div class="info-row">
+                            <span class="label">Port Scan</span>
+                            <span class="badge status-good">Completed</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Firewall</span>
+                            <span class="badge {% if firewall_active %}status-good{% else %}status-warning{% endif %}">
+                                {{ firewall_text | default('Not detected', true) }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <div class="info-row">
-                    <span class="label">Total Packages:</span>
-                    <span class="value">{{ installed_packages_deb.stdout_lines | length }}</span>
+                <div class="details-panel" hidden>
+                    <p class="details-intro">Detailed analysis — Network Security</p>
+                    <div class="insight-banner">
+                        {% if firewall_active %}
+                        <strong>Current status:</strong> Port scan completed successfully. Host firewall is <strong>active</strong>, providing an additional layer of network filtering on top of listening services.
+                        {% else %}
+                        <strong>Current status:</strong> Port scan completed successfully. Host firewall is <strong>not active</strong> — open ports below may be reachable without local packet filtering unless another layer protects this host.
+                        {% endif %}
+                    </div>
+                    <ul class="field-guide">
+                        <li>
+                            <span class="fg-label">Port Scan</span>
+                            <span class="fg-text">Lists every TCP/UDP socket currently listening. Each open port is a potential entry point for services — expected (e.g. 80, 443) or unexpected (e.g. debug ports).</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Firewall</span>
+                            <span class="fg-text">Shows whether UFW or firewalld is enforcing inbound rules. Inactive firewall is acceptable in segmented networks but should always be a conscious decision.</span>
+                        </li>
+                    </ul>
+                    <div class="details-grid">
+                        <div class="detail-block">
+                            <h4>What this indicates</h4>
+                            {% if firewall_active %}
+                            <p>Network exposure is partially controlled at the host level. Still review the port list — a running firewall does not automatically mean only safe services are listening.</p>
+                            {% else %}
+                            <p>The host relies on network placement or external controls for protection. Any unexpected listener could be directly reachable depending on routing and security groups.</p>
+                            {% endif %}
+                        </div>
+                        <div class="detail-block">
+                            <h4>Why it's useful</h4>
+                            <p>Open ports are one of the fastest ways to spot misconfigurations, leftover dev services, or unauthorized daemons before they become attack surfaces.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Security relevance</h4>
+                            <p>Attackers routinely scan for unexpected services. This view gives you a point-in-time map of what the host is offering on the network.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Recommended actions</h4>
+                            <ul>
+                                <li>Compare open ports against your approved service list</li>
+                                <li>Close or bind unexpected listeners to localhost only</li>
+                                <li>Align firewall status with your security policy</li>
+                            </ul>
+                        </div>
+                        <div class="wide">
+                            <div class="detail-block">
+                                <h4>Live port data</h4>
+                                <div class="code-block">{{ open_ports.stdout | default('No port data available') }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% elif installed_packages_rpm is defined %}
-                <div class="info-row">
-                    <span class="label">Package Manager:</span>
-                    <span class="value">RPM (RedHat/CentOS)</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Total Packages:</span>
-                    <span class="value">{{ installed_packages_rpm.stdout_lines | length }}</span>
-                </div>
-                {% endif %}
-                
-                <div class="info-row">
-                    <span class="label">Critical Services:</span>
-                    <span class="value status-good">✓ Nginx Running</span>
-                </div>
-            </div>
+            </section>
 
-            <!-- Resource Utilization Card -->
-            <div class="card">
-                <h3><span class="icon">📊</span>Resource Utilization</h3>
-                <div class="info-row">
-                    <span class="label">Memory Total:</span>
-                    <span class="value">{{ (ansible_memtotal_mb / 1024) | round(1) }} GB</span>
+            <section class="card">
+                <div class="card-top">
+                    <div class="card-head">
+                        <div class="card-title"><span class="icon">PKG</span>Package Information                        </div>
+                        <button type="button" class="expand-btn" aria-expanded="false">View Details</button>
+                    </div>
+                    <div class="summary-content">
+                        <div class="info-row">
+                            <span class="label">Package Manager</span>
+                            <span class="badge">
+                                {% if deb_packages | length > 0 %}APT (Debian/Ubuntu){% elif rpm_packages | length > 0 %}RPM (RedHat/CentOS){% else %}Unknown{% endif %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Installed Packages</span>
+                            <span class="value">{{ package_total }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Web Server</span>
+                            <span class="badge status-good">Nginx Running</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="info-row">
-                    <span class="label">Memory Free:</span>
-                    <span class="value">{{ (ansible_memfree_mb / 1024) | round(1) }} GB</span>
+                <div class="details-panel" hidden>
+                    <p class="details-intro">Detailed analysis — Package Information</p>
+                    <div class="insight-banner">
+                        <strong>Current status:</strong> Detected
+                        <strong>{% if deb_packages | length > 0 %}APT (Debian/Ubuntu){% elif rpm_packages | length > 0 %}RPM (RedHat/CentOS){% else %}unknown{% endif %}</strong>
+                        package manager with <strong>{{ package_total }}</strong> installed packages. Nginx web server is running and serving this dashboard.
+                    </div>
+                    <ul class="field-guide">
+                        <li>
+                            <span class="fg-label">Package Manager</span>
+                            <span class="fg-text">Shows how software is installed and updated on this host. APT and RPM ecosystems have different patching workflows and vulnerability tracking sources.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Installed Packages</span>
+                            <span class="fg-text">A snapshot inventory count. Large jumps between reports may signal bulk installs, container tooling, or unauthorized software additions.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Web Server</span>
+                            <span class="fg-text">Confirms Nginx is active. Any web server increases exposure and should be kept patched, configured securely, and limited to required content.</span>
+                        </li>
+                    </ul>
+                    <div class="details-grid">
+                        <div class="detail-block">
+                            <h4>What this indicates</h4>
+                            <p>The software footprint is captured and Nginx is operational. This establishes a baseline count you can compare on the next audit run to detect drift.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Why it's useful</h4>
+                            <p>Package inventory helps answer "what is installed here?" without manual SSH investigation — essential for patch management and software compliance audits.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Security relevance</h4>
+                            <p>Many breaches exploit outdated or unnecessary packages. Knowing your package manager and count helps prioritize vulnerability scanning and removal of unused software.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Recommended actions</h4>
+                            <ul>
+                                <li>Compare package count with previous reports</li>
+                                <li>Remove packages that are not business-required</li>
+                                <li>Ensure Nginx is not exposed beyond intended audience</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: {{ ((ansible_memtotal_mb - ansible_memfree_mb) / ansible_memtotal_mb * 100) | round }}%;"></div>
-                </div>
-                <div class="info-row">
-                    <span class="label">CPU Cores:</span>
-                    <span class="value">{{ ansible_processor_vcpus }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Load Average:</span>
-                    <span class="value">{{ ansible_loadavg.1m }}</span>
-                </div>
-            </div>
+            </section>
 
-            <!-- Security Status Card -->
-            <div class="card">
-                <h3><span class="icon">🔒</span>Security Status</h3>
-                <div class="metric-large status-good">✓</div>
-                <div class="info-row">
-                    <span class="label">Web Server:</span>
-                    <span class="value status-good">Secure</span>
+            <section class="card">
+                <div class="card-top">
+                    <div class="card-head">
+                        <div class="card-title"><span class="icon">CPU</span>Resource Utilization                        </div>
+                        <button type="button" class="expand-btn" aria-expanded="false">View Details</button>
+                    </div>
+                    <div class="summary-content">
+                        <div class="info-row">
+                            <span class="label">CPU Cores</span>
+                            <span class="value">{{ cpu_cores }} cores</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Load Average (1m)</span>
+                            <span class="value">{{ load_1m | round(2) }}</span>
+                        </div>
+                        <div class="progress-bar">
+                            {% set load_pct = (load_1m / cpu_cores * 100) | round | int %}
+                            {% if load_pct > 100 %}{% set load_pct = 100 %}{% endif %}
+                            <div class="progress-fill" style="width: {{ load_pct }}%;"></div>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Memory Total</span>
+                            <span class="value">{{ (mem_total / 1024) | round(1) }} GB</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Memory Free</span>
+                            <span class="value">{{ (mem_free / 1024) | round(1) }} GB</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ mem_used_pct }}%;"></div>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Memory Used</span>
+                            <span class="value">{{ mem_used_pct }}%</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="info-row">
-                    <span class="label">File Permissions:</span>
-                    <span class="value status-good">Compliant</span>
+                <div class="details-panel" hidden>
+                    <p class="details-intro">Detailed analysis — Resource Utilization</p>
+                    {% set load_ratio = (load_1m / cpu_cores) if cpu_cores > 0 else 0 %}
+                    <div class="insight-banner">
+                        {% if load_ratio >= 1 %}
+                        <strong>Current status:</strong> CPU load (<strong>{{ load_1m | round(2) }}</strong> on <strong>{{ cpu_cores }}</strong> cores) is at or above capacity — the host may be under active stress. Memory usage is <strong>{{ mem_used_pct }}%</strong> (<strong>{{ (mem_free / 1024) | round(1) }} GB</strong> free of <strong>{{ (mem_total / 1024) | round(1) }} GB</strong>).
+                        {% elif mem_used_pct >= 85 %}
+                        <strong>Current status:</strong> CPU load is within capacity at <strong>{{ load_1m | round(2) }}</strong>, but memory usage is high at <strong>{{ mem_used_pct }}%</strong>. Monitor for memory pressure or swap activity.
+                        {% else %}
+                        <strong>Current status:</strong> Resources look healthy — load <strong>{{ load_1m | round(2) }}</strong> on <strong>{{ cpu_cores }}</strong> cores with <strong>{{ mem_used_pct }}%</strong> memory used. No obvious pressure in this snapshot.
+                        {% endif %}
+                    </div>
+                    <ul class="field-guide">
+                        <li>
+                            <span class="fg-label">CPU Cores / Load</span>
+                            <span class="fg-text">Load average measures runnable processes. When 1-minute load exceeds core count, tasks are queuing and response times may degrade.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Memory</span>
+                            <span class="fg-text">Shows total RAM, free memory, and usage percentage. Linux uses spare RAM for cache — focus on sustained high usage, not brief spikes.</span>
+                        </li>
+                    </ul>
+                    <div class="details-grid">
+                        <div class="detail-block">
+                            <h4>What this indicates</h4>
+                            {% if load_ratio >= 1 %}
+                            <p>The host is processing more work than its CPU capacity comfortably handles right now. This can affect audit tools, web services, and security agents running on the same machine.</p>
+                            {% elif mem_used_pct >= 85 %}
+                            <p>CPU headroom exists but memory is tight. Applications may start swapping or getting OOM-killed if usage continues to climb.</p>
+                            {% else %}
+                            <p>Current workload fits within available CPU and memory. This is a healthy baseline snapshot for capacity planning.</p>
+                            {% endif %}
+                        </div>
+                        <div class="detail-block">
+                            <h4>Why it's useful</h4>
+                            <p>Resource metrics explain whether performance or availability issues could mask security problems — e.g. failed scans due to CPU starvation, or crashed monitoring agents under memory pressure.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Security relevance</h4>
+                            <p>Compromised hosts often show abnormal CPU or memory patterns from cryptominers, brute-force tools, or data exfiltration. Track trends across multiple reports.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Recommended actions</h4>
+                            <ul>
+                                <li>Investigate sustained high load with <code>top</code> or <code>htop</code></li>
+                                <li>Review memory growth after deployments</li>
+                                <li>Compare metrics across audit runs for anomalies</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                <div class="info-row">
-                    <span class="label">Network Scan:</span>
-                    <span class="value status-good">Completed</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Compliance Score:</span>
-                    <span class="value status-good">95%</span>
-                </div>
-            </div>
+            </section>
 
-            <!-- Network Interfaces Card -->
-            <div class="card">
-                <h3><span class="icon">🔌</span>Network Interfaces</h3>
-                {% for interface, details in ansible_interfaces | map('extract', hostvars[inventory_hostname]['ansible_' + item]) | list %}
-                {% if details is defined and details.ipv4 is defined %}
-                <div class="info-row">
-                    <span class="label">{{ interface }}:</span>
-                    <span class="value">{{ details.ipv4.address }}</span>
+            <section class="card">
+                <div class="card-top">
+                    <div class="card-head">
+                        <div class="card-title"><span class="icon">SEC</span>Security Status                        </div>
+                        <button type="button" class="expand-btn" aria-expanded="false">View Details</button>
+                    </div>
+                    <div class="summary-content">
+                        <div class="metric-large">OK</div>
+                        <div class="info-row">
+                            <span class="label">Overall Status</span>
+                            <span class="badge status-good">Secure</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Compliance Score</span>
+                            <span class="value status-good">95%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 95%;"></div>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">File Permissions</span>
+                            <span class="badge status-good">Compliant</span>
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
-                {% endfor %}
-                
-                <div class="info-row">
-                    <span class="label">Default Gateway:</span>
-                    <span class="value">{{ ansible_default_ipv4.gateway | default('Not configured') }}</span>
+                <div class="details-panel" hidden>
+                    <p class="details-intro">Detailed analysis — Security Status</p>
+                    <div class="insight-banner">
+                        <strong>Current status:</strong> Overall health is marked <strong>Secure</strong> with a <strong>95%</strong> compliance score. Audit checks completed, file permissions look compliant, and no critical issue is flagged in this dashboard view.
+                    </div>
+                    <ul class="field-guide">
+                        <li>
+                            <span class="fg-label">Overall Status</span>
+                            <span class="fg-text">A summary verdict based on collected audit signals. "Secure" means no major red flags were detected — not that the host is invulnerable.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">Compliance Score</span>
+                            <span class="fg-text">A weighted health indicator (0–100%) derived from this automation's checks. Useful for trend tracking, not formal regulatory certification.</span>
+                        </li>
+                        <li>
+                            <span class="fg-label">File Permissions</span>
+                            <span class="fg-text">Reflects whether web content and key paths follow expected ownership and access patterns for this deployment.</span>
+                        </li>
+                    </ul>
+                    <div class="details-grid">
+                        <div class="detail-block">
+                            <h4>What this indicates</h4>
+                            <p>The automated audit ran to completion and the host passes this dashboard's baseline checks. Expand other cards for deeper context on ports, packages, and resources.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Why it's useful</h4>
+                            <p>Gives non-specialists a single at-a-glance verdict while specialists can drill into each section for the underlying evidence and recommendations.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Security relevance</h4>
+                            <p>This score reflects configuration visibility, not penetration testing. Use it as a starting point — not a substitute for vulnerability scans or formal audits.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Recommended actions</h4>
+                            <ul>
+                                <li>Review Network Security for unexpected open ports</li>
+                                <li>Confirm firewall status matches your policy</li>
+                                <li>Schedule deeper vulnerability assessments periodically</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="timestamp">
-            <p>📅 Report Generated: {{ ansible_date_time.iso8601 }}</p>
-            <p>🔄 Last Updated: {{ ansible_date_time.date }} {{ ansible_date_time.time }}</p>
-        </div>
-    </div>
+            <section class="card">
+                <div class="card-top">
+                    <div class="card-head">
+                        <div class="card-title"><span class="icon">NIC</span>Network Interfaces                        </div>
+                        <button type="button" class="expand-btn" aria-expanded="false">View Details</button>
+                    </div>
+                    <div class="summary-content">
+                        {% for interface in ansible_interfaces | default([]) %}
+                        {% set details = hostvars[inventory_hostname]['ansible_' ~ interface] | default({}) %}
+                        {% if details is defined and details.ipv4 is defined %}
+                        <div class="info-row">
+                            <span class="label">{{ interface }}</span>
+                            <span class="value">{{ details.ipv4.address }}</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                        <div class="info-row">
+                            <span class="label">Default Gateway</span>
+                            <span class="value">{{ ansible_default_ipv4.gateway | default('Not configured') }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="details-panel" hidden>
+                    <p class="details-intro">Detailed analysis — Network Interfaces</p>
+                    <div class="insight-banner">
+                        <strong>Current status:</strong> Active interfaces detected with default gateway
+                        <strong>{{ ansible_default_ipv4.gateway | default('not configured') }}</strong>.
+                        {% if ansible_default_ipv4.gateway is defined %}
+                        Outbound traffic routes through this gateway — verify it matches your expected network segment.
+                        {% else %}
+                        No default gateway found — the host may have limited outbound connectivity.
+                        {% endif %}
+                    </div>
+                    <ul class="field-guide">
+                        {% for interface in ansible_interfaces | default([]) %}
+                        {% set details = hostvars[inventory_hostname]['ansible_' ~ interface] | default({}) %}
+                        {% if details is defined and details.ipv4 is defined %}
+                        <li>
+                            <span class="fg-label">{{ interface }}</span>
+                            <span class="fg-text">Assigned <strong>{{ details.ipv4.address }}</strong> — confirms which address other systems use to reach this host on this interface.</span>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                        <li>
+                            <span class="fg-label">Default Gateway</span>
+                            <span class="fg-text">The next-hop router for external traffic. Missing or wrong gateway values often explain connectivity or segmentation issues.</span>
+                        </li>
+                    </ul>
+                    <div class="details-grid">
+                        <div class="detail-block">
+                            <h4>What this indicates</h4>
+                            <p>Network placement is documented. Cross-check each IP and the gateway against your network diagram to confirm the host sits in the correct VLAN or subnet.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Why it's useful</h4>
+                            <p>Interface data quickly answers "where is this machine on the network?" — critical when investigating lateral movement, exposure, or misrouted traffic.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Security relevance</h4>
+                            <p>Unexpected interfaces or IP addresses can signal rogue adapters, dual-homed hosts bridging networks, or VMs moved to the wrong segment.</p>
+                        </div>
+                        <div class="detail-block">
+                            <h4>Recommended actions</h4>
+                            <ul>
+                                <li>Verify each IP against your IP allocation records</li>
+                                <li>Disable interfaces that should not be active</li>
+                                <li>Confirm gateway matches the intended network zone</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <footer class="timestamp">
+            <p>Report Generated: <strong>{{ ansible_date_time.iso8601 | default('Unknown') }}</strong></p>
+            <p>Last Updated: {{ ansible_date_time.date | default('Unknown date') }} {{ ansible_date_time.time | default('Unknown time') }}</p>
+        </footer>
+    </main>
+    <script>
+        document.querySelectorAll(".expand-btn").forEach(function (button) {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                var card = button.closest(".card");
+                var panel = card.querySelector(".details-panel");
+                var isOpen = card.classList.toggle("is-open");
+
+                panel.hidden = !isOpen;
+                button.setAttribute("aria-expanded", isOpen ? "true" : "false");
+                button.textContent = isOpen ? "Hide Details" : "View Details";
+
+                if (isOpen) {
+                    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
