@@ -75,8 +75,10 @@ python3 -m pip install -r requirements.txt
 Keep the project in a folder WSL can access, for example:
 
 ```text
-/mnt/c/Users/ADMIN/SecOpsPulse
+/mnt/c/Users/<YourUser>/path/to/SecOpsPulse
 ```
+
+Replace `<YourUser>` with your Windows username and adjust the path to match where you cloned the project (for example, your Desktop or OneDrive folder).
 
 Or clone directly inside WSL:
 
@@ -122,10 +124,10 @@ chmod +x deploy_secopspulse.sh
 ./deploy_secopspulse.sh
 ```
 
-If the project is on your Windows drive, use the WSL path:
+If the project is on your Windows drive, use the WSL path to your clone location:
 
 ```bash
-cd "/mnt/c/Users/ADMIN/OneDrive/Desktop/Ansible Project/SecOpsPulse"
+cd "/mnt/c/Users/<YourUser>/path/to/SecOpsPulse"
 chmod +x deploy_secopspulse.sh
 ./deploy_secopspulse.sh
 ```
@@ -133,10 +135,10 @@ chmod +x deploy_secopspulse.sh
 **Option 2 — From Windows PowerShell**
 
 ```powershell
-wsl bash -lc "cd '/mnt/c/Users/ADMIN/OneDrive/Desktop/Ansible Project/SecOpsPulse' && bash deploy_secopspulse.sh"
+wsl bash -lc "cd '/mnt/c/Users/<YourUser>/path/to/SecOpsPulse' && bash deploy_secopspulse.sh"
 ```
 
-Adjust the path if you cloned the repository to a different folder on your machine.
+Replace `<YourUser>` and `path/to/SecOpsPulse` with your Windows username and the folder where you cloned the repository.
 
 When prompted for **BECOME password**, enter your **WSL Ubuntu user password** (the same password you use for `sudo` inside WSL).
 
